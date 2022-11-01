@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "header": {
+      "description": "クリエイティブモードでの作業効率を向上させるアドオンです。棒を使用することでメニューを表示することができます。このアドオンを使用する際は§2§lゲームテストフレームワークを有効§rにしてください。",
+      "name": "§2§lクリエイティブ ヘルパー",
+      "uuid": "5ed72923-a588-4af1-a876-1353e3971c80",
+      "version": [ 0, 0, 2 ],
+      "min_engine_version": [ 1, 19, 0 ]
+  },
+  "modules": [
+      {
+          "description": "NO DESCRIPTION",
+          "type": "script",
+          "language": "javascript",
+          "uuid": "4be8109e-467d-4f11-b0a8-007969700527",
+          "version": [ 0, 0, 2 ],
+          "entry": "scripts/main.js"
+      }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.0.0-beta"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "1.0.0-beta"
+    }
+  ]
+}
