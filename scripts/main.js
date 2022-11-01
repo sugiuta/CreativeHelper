@@ -7,12 +7,6 @@ let itemNameList = ["なし"];
 let itemIdList = ["NOTHING"];
 let itemDataList = ["0"];
 
-let blockPlaceDirection = 0;
-let blockPlaceCount = 1;
-
-let level_radius = 1;
-let level_height = 1;
-
 class playerInfo {
     constructor (player, name, place, level) {
         this.player = player;
@@ -21,11 +15,30 @@ class playerInfo {
         this.level = level;
     }
 }
+
+class placeInfo {
+    constructor (enabled, direction, count) {
+        this.enabled = enabled;
+        this.direction = direction;
+        this.count = count;
+    }
+}
+
+class levelInfo {
+    constructor (enabled, radius, height) {
+        this.enabled = enabled;
+        this.radius = radius;
+        this.height = height;
+    }
+}
+
 /* <----- グローバル -----> */
 
 // プレイヤー入室時のデータ取得
 world.events.playerJoin.subscribe(pjEvent => {
-    let player = new playerInfo(pjEvent.player, pjEvent.player.name, false, false);
+    let placeData = new placeInfo(false, 0, 1);
+    let levelData = new levelInfo(false, 1, 1);
+    let player = new playerInfo(pjEvent.player, pjEvent.player.name, placeData, levelData);
     playerList.push(player);
 });
 
@@ -78,13 +91,13 @@ function modalFormAppear (p, n) {
     if (n == 0) {
         const blockForm = new ModalFormData()
         .title('§2§l連鎖ブロック')
-        .toggle(`[機能をオンにする]`, playerData.place)
-        .dropdown('[ブロックの配置方向を選択]', ['縦', '横', '奥', '手前'], blockPlaceDirection)
-        .slider("[個数指定]", 1, 10, 1, blockPlaceCount)
+        .toggle(`[機能をオンにする]`, playerData.place.enabled)
+        .dropdown('[ブロックの配置方向を選択]', ['縦', '横', '奥', '手前'], playerData.place.direction)
+        .slider("[個数指定]", 1, 10, 1, playerData.place.count)
         blockForm.show(p).then(response => {
-            playerData.place = response.formValues[0];
-            blockPlaceDirection = parseInt(response.formValues[1]);
-            blockPlaceCount = response.formValues[2];
+            playerData.place.enabled = response.formValues[0];
+            playerData.place.direction = parseInt(response.formValues[1]);
+            playerData.place.count = response.formValues[2];
         })
     } else if (n == 1) {
         const ruleForm = new ModalFormData()
@@ -118,13 +131,13 @@ function modalFormAppear (p, n) {
     } else if (n == 3) {
         const levelForm = new ModalFormData()
         .title('§2§l整地(誤使用注意！)')
-        .toggle(`[機能をオンにする]`, playerData.level)
-        .slider("[半径]", 1, 10, 1, level_radius)
-        .slider("[高さ]", 1, 10, 1, level_height)
+        .toggle(`[機能をオンにする]`, playerData.level.enabled)
+        .slider("[半径]", 1, 10, 1, playerData.level.radius)
+        .slider("[高さ]", 1, 10, 1, playerData.level.height)
         levelForm.show(p).then(response => {
-            playerData.level = response.formValues[0];
-            level_radius = response.formValues[1];
-            level_height = response.formValues[2];
+            playerData.level.enabled = response.formValues[0];
+            playerData.level.radius = response.formValues[1];
+            playerData.level.height = response.formValues[2];
         })
     }
 };
@@ -134,16 +147,16 @@ function modalFormAppear (p, n) {
 // ブロックを配置した際の情報を取得
 world.events.blockPlace.subscribe(bpEvent => {
     let playerData = getPlayerData(bpEvent.player.name);
-    if (!playerData.place) return;
+    if (!playerData.place.enabled) return;
 
     const clone = bpEvent.block.permutation.clone();
     let direction = bpEvent.player.rotation.y;
-    if (blockPlaceDirection == 0) { // 縦の場合
-        for (let y = 1; y <= blockPlaceCount; y += 1) {
+    if (playerData.place.direction == 0) { // 縦の場合
+        for (let y = 1; y <= playerData.place.count; y += 1) {
             bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x, bpEvent.block.location.y + y, bpEvent.block.location.z)).setPermutation(clone);
         }
-    } else if (blockPlaceDirection == 1) { // 横の場合
-        for (let x = 1; x <= blockPlaceCount; x += 1) {
+    } else if (playerData.place.direction == 1) { // 横の場合
+        for (let x = 1; x <= playerData.place.count; x += 1) {
             if ((-180 <= direction && direction < -135) || (-45 <= direction && direction < 45) || (135 <= direction && direction <= 180)) { // X軸方向
                 bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x + x, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
                 bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x - x, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
@@ -152,8 +165,8 @@ world.events.blockPlace.subscribe(bpEvent => {
                 bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z - x)).setPermutation(clone);
             }
         }
-    } else if (blockPlaceDirection == 2) { // 奥の場合
-        for (let z = 1; z <= blockPlaceCount; z += 1) {
+    } else if (playerData.place.direction == 2) { // 奥の場合
+        for (let z = 1; z <= playerData.place.count; z += 1) {
             if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) { // bpEvent.block.location.z - z
                 bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z - z)).setPermutation(clone);
             } else if (-135 <= direction && direction < -45) { // bpEvent.block.location.x + z
@@ -165,7 +178,7 @@ world.events.blockPlace.subscribe(bpEvent => {
             }
         }
     } else { // 手前の場合
-        for (let z = 1; z <= blockPlaceCount; z += 1) {
+        for (let z = 1; z <= playerData.place.count; z += 1) {
             if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) { // bpEvent.block.location.z + z
                 bpEvent.dimension.getBlock(new BlockLocation(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z + z)).setPermutation(clone);
             } else if (-135 <= direction && direction < -45) { // bpEvent.block.location.x - z
@@ -185,10 +198,10 @@ world.events.blockPlace.subscribe(bpEvent => {
 world.events.tick.subscribe(tick => {
     if ((tick.currentTick % 10) != 0) return;
     for (let i = 0; i < playerList.length; i++) {
-        if (playerList[i].level) {
+        if (playerList[i].level.enabled) {
             playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l整地機能§4§l作動中"}]}`);
             try {
-                playerList[i].player.runCommandAsync(`fill ~${-level_radius}~~${-level_radius} ~${level_radius}~${level_height-1}~${level_radius} air 0`);
+                playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air 0`);
             } catch(error) {}
         }
     }
