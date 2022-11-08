@@ -204,5 +204,8 @@ world.events.tick.subscribe(tick => {
                 playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air 0`);
             } catch(error) {}
         }
+        if (playerList[i].place.enabled) {
+            playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l連鎖機能§4§l作動中"}]}`);
+        }
     }
 });
