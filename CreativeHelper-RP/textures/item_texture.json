@@ -1,0 +1,8 @@
+{
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "creative_helper": {
+      "textures": "textures/items/creative_helper"
+    }
+  }
+}

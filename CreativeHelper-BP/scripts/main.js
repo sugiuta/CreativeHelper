@@ -71,14 +71,14 @@ function getPlayerData(n) {
 
 // 指定のアイテムを使用した際にメニューを開く
 world.events.beforeItemUse.subscribe(useEvent => {
-    if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `minecraft:stick`) return;
+    if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `sugiuta:creative_helper`) return;
     actionFormAppear(useEvent.source);
 });
 
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lクリエイティブ ヘルパー v0.0.5`)
+    .title(`§2§lクリエイティブヘルパー §fv0.0.6`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
     .button(`ゲーム設定の変更`, `textures/items/ender_pearl`)
     .button(`アイテムの取得`, `textures/items/totem`)

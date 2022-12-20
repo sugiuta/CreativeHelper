@@ -2,13 +2,13 @@
 
 # パッケージ名を指定
 name="Creative_Helper"
-version="0.0.5"
+version="0.0.6"
 
 # ディレクトリの作成
 mkdir -p ./package
 
 # package フォルダ内にコピー
-cp -r ./scripts manifest.json pack_icon.png ./package
+cp -r ./CreativeHelper-BP ./CreativeHelper-RP ./package
 
 # ディレクトリの移動
 cd ./package
@@ -17,10 +17,10 @@ cd ./package
 zip -r ${name}_${version}.zip ./*
 
 # 名前の変更
-mv ${name}_${version}.zip ${name}_${version}.mcpack
+mv ${name}_${version}.zip ${name}_${version}.mcaddon
 
 # package フォルダの削除
-rm -rf ./scripts manifest.json pack_icon.png
+rm -rf ./CreativeHelper-BP ./CreativeHelper-RP
 
 echo
 echo "Make package successful!"
