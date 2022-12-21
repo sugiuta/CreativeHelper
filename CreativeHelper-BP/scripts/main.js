@@ -78,7 +78,7 @@ world.events.beforeItemUse.subscribe(useEvent => {
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lクリエイティブヘルパー §fv0.0.6`)
+    .title(`§2§lクリエイティブヘルパー §fv0.0.7`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
     .button(`ゲーム設定の変更`, `textures/items/ender_pearl`)
     .button(`アイテムの取得`, `textures/items/totem`)
@@ -123,7 +123,7 @@ function modalFormAppear (p, n) {
             itemForm.show(p).then(response => {
                 if (response.formValues[2]) {
                     p.runCommandAsync(`clear @s`);
-                    p.runCommandAsync(`give @s stick`);
+                    p.runCommandAsync(`give @s sugiuta:creative_helper`);
                 }
                 if (parseInt(response.formValues[0]) == 0) return;
                 p.runCommandAsync(`give @s ${itemIdList[parseInt(response.formValues[0])]} ${response.formValues[1]} ${itemDataList[parseInt(response.formValues[0])]}`);
@@ -169,10 +169,10 @@ function setItemListData() {
 function changedGamemode(p, n) {
     switch (n) {
         case 0:
-            p.runCommandAsync(`gamemode creative @s`);
+            p.runCommandAsync(`gamemode survival @s`);
             break;
         case 1:
-            p.runCommandAsync(`gamemode survival @s`);
+            p.runCommandAsync(`gamemode creative @s`);
             break;
         case 2:
             p.runCommandAsync(`gamemode adventure @s`);
@@ -191,10 +191,10 @@ function addPlayerEffect(p, n, l, b) {
             p.runCommandAsync(`effect @s speed 10000 ${l} ${b}`);
             break;
         case 1:
-            p.runCommandAsync(`effect @s jump_boost 10000 ${l} ${b}`);
+        p.runCommandAsync(`effect @s jump_boost 10000 ${l} ${b}`);
             break;
         case 2:
-            p.runCommandAsync(`effect @s night_vision 10000 ${l} ${b}`);
+        p.runCommandAsync(`effect @s night_vision 10000 ${l} ${b}`);
             break;
         case 3:
             p.runCommandAsync(`effect @s clear`);
