@@ -38,11 +38,15 @@ class levelInfo {
 
 // プレイヤー入室時のデータ取得
 world.events.playerJoin.subscribe(pjEvent => {
-    let placeData = new placeInfo(false, 0, 1);
-    let levelData = new levelInfo(false, 1, 1);
-    // v1.19.60以降はplayerが取得できないのでこの箇所を修正予定。
-    let player = new playerInfo(pjEvent.player, placeData, levelData);
-    playerList.push(player);
+    let players = world.getAllPlayers();
+    for (let player of players) {
+        if (player.name != pjEvent.playerName) continue;
+        let placeData = new placeInfo(false, 0, 1);
+        let levelData = new levelInfo(false, 1, 1);
+        let data =  new playerInfo(player, placeData, levelData);
+        playerList.push(data);
+        break;
+    }
 });
 
 // プレイヤー退室時のデータ削除
