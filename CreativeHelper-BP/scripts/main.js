@@ -36,37 +36,12 @@ class levelInfo {
 
 /* <----- グローバル -----> */
 
-// プレイヤー入室時のデータ取得
-world.events.playerJoin.subscribe(pjEvent => {
-    let players = world.getAllPlayers();
-    for (let player of players) {
-        if (player.name != pjEvent.playerName) continue;
-        let placeData = new placeInfo(false, 0, 1);
-        let levelData = new levelInfo(false, 1, 1);
-        let data =  new playerInfo(player, placeData, levelData);
-        playerList.push(data);
-        break;
-    }
-});
-
-// プレイヤー退室時のデータ削除
-world.events.playerLeave.subscribe(plEvent => {
-    for (let i = 0; i < playerList.length; i++) {
-        let playerData = playerList[i];
-        if (playerData.name == plEvent.playerName) {
-            playerList.splice(i, 1);
-            break;
-        }
-    }
-});
-
 // プレイヤーデータをリストから取得する。
 function getPlayerData(n) {
     if (playerList.length == 0) return;
     for (let i = 0; i < playerList.length; i++) {
-        if (n == playerList[i].name) {
-            return playerList[i];
-        }
+        if (n != playerList[i].name) continue;
+        return playerList[i];
     }
     return undefined;
 }
@@ -76,13 +51,40 @@ function getPlayerData(n) {
 // 指定のアイテムを使用した際にメニューを開く
 world.events.beforeItemUse.subscribe(useEvent => {
     if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `sugiuta:creative_helper`) return;
+    if (!checkPlayerData(useEvent.source.name)) addPlayerData(useEvent.source.name);
     actionFormAppear(useEvent.source);
 });
+
+function checkPlayerData(n) {
+    if (playerList.length == 0) return false;
+    for (let data of playerList) {
+        if (n != data.name) continue;
+        return true;
+    }
+    return false;
+}
+
+function addPlayerData(n) {
+    let player = getPlayer(n);
+    let placeData = new placeInfo(false, 0, 1);
+    let levelData = new levelInfo(false, 1, 1);
+    let data =  new playerInfo(player, placeData, levelData);
+    playerList.push(data);
+}
+
+function getPlayer(n) {
+    let players = world.getAllPlayers();
+    for (let player of players) {
+        if (n != player.name) continue;
+        return player;
+    }
+    return undefined;
+}
 
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lクリエイティブヘルパー §fv0.0.7`)
+    .title(`§2§lクリエイティブヘルパー §fv0.0.8`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
     .button(`ゲーム設定の変更`, `textures/items/ender_pearl`)
     .button(`アイテムの取得`, `textures/items/totem`)
@@ -95,7 +97,6 @@ function actionFormAppear (p) {
 
 // モーダルメニューの表示
 function modalFormAppear (p, n) {
-    let playerData = getPlayerData(p.name);
     switch (n) {
         case 0:
             const blockForm = new ModalFormData()
