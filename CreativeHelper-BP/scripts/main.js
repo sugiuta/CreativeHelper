@@ -84,7 +84,7 @@ function getPlayer(n) {
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lCreative Helper for §fv1.19.73`)
+    .title(`§2§lCreative Helper for §fv1.19.80`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
     .button(`ゲーム設定の変更`, `textures/items/ender_pearl`)
     .button(`アイテムの取得`, `textures/items/totem`)
@@ -269,8 +269,10 @@ system.runInterval(() => {
         if (playerList[i].level.enabled) {
             playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l整地機能§4§l作動中"}]}`);
             try {
-                playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air 0`);
-            } catch(error) {}
+                playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air`);
+            } catch(error) {
+                playerList[i].player.runCommandAsync(`say ERROR: ${error}`);
+            }
         }
         if (playerList[i].place.enabled) {
             playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l連鎖機能§4§l作動中"}]}`);

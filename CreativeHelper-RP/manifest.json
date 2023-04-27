@@ -4,7 +4,7 @@
         "description": "クリエイティブモードでの作業効率を向上させるアドオンです。クリエイティブヘルパー(アイテム)を使用することでメニューを表示することができます。このアドオンを使用する際は§2§lベータAPI§rと§2§lホリデークリエイターの特徴§rを有効にしてください。",
         "name": "§2§lクリエイティブ§fヘルパー(RP)",
         "uuid": "7b3a3908-f362-4b2f-b80e-3cdee6ccff35",
-        "version": [ 0, 0, 9 ],
+        "version": [ 0, 1, 0 ],
         "min_engine_version": [ 1, 19, 0 ]
     },
     "modules": [
@@ -12,13 +12,13 @@
 			"description": "NO DESCRIPTION",
             "type": "resources",
             "uuid": "343e515f-3956-4eae-8af6-95e0021ce887",
-			"version": [ 0, 0, 9 ]
+			"version": [ 0, 1, 0 ]
         }
     ],
     "dependencies": [
         {
           "uuid": "5ed72923-a588-4af1-a876-1353e3971c80",
-          "version": [ 0, 0, 9 ]
+          "version": [ 0, 1, 0 ]
         }
     ]
 }
