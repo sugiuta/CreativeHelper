@@ -1,38 +1,13 @@
 import { world, Vector, system } from "@minecraft/server"
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
+import { playerInfo, placeInfo, levelInfo, teleportInfo } from "./class.js"
 import config from "./config.js"
 
 let playerList = [];
 let itemNameList = [`なし`];
 let itemIdList = [`NOTHING`];
 let itemDataList = [`0`];
-
-class playerInfo {
-    constructor (player, place, level) {
-        this.player = player;
-        this.place = place;
-        this.level = level;
-    }
-    get name() {
-        return this.player.name;
-    }
-}
-
-class placeInfo {
-    constructor (enabled, direction, count) {
-        this.enabled = enabled;
-        this.direction = direction;
-        this.count = count;
-    }
-}
-
-class levelInfo {
-    constructor (enabled, radius, height) {
-        this.enabled = enabled;
-        this.radius = radius;
-        this.height = height;
-    }
-}
+let teleportList = [];
 
 /* <----- グローバル -----> */
 
@@ -45,15 +20,6 @@ function getPlayerData(n) {
     }
     return undefined;
 }
-
-/* <----- メニュー表示 -----> */
-
-// 指定のアイテムを使用した際にメニューを開く
-world.events.beforeItemUse.subscribe(useEvent => {
-    if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `sugiuta:creative_helper`) return;
-    if (!checkPlayerData(useEvent.source.name)) addPlayerData(useEvent.source.name);
-    actionFormAppear(useEvent.source);
-});
 
 function checkPlayerData(n) {
     if (playerList.length == 0) return false;
@@ -81,13 +47,23 @@ function getPlayer(n) {
     return undefined;
 }
 
+/* <----- メニュー表示 -----> */
+
+// 指定のアイテムを使用した際にメニューを開く
+world.events.beforeItemUse.subscribe(useEvent => {
+    if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `sugiuta:creative_helper`) return;
+    if (!checkPlayerData(useEvent.source.name)) addPlayerData(useEvent.source.name);
+    actionFormAppear(useEvent.source);
+});
+
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lCreative Helper for §fv1.19.80`)
+    .title(`§2§lCreative Helper for §fv1.19.81`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
-    .button(`ゲーム設定の変更`, `textures/items/ender_pearl`)
+    .button(`ゲーム設定の変更`, `textures/items/apple_golden`)
     .button(`アイテムの取得`, `textures/items/totem`)
+    .button(`カスタムテレポート`, `textures/items/ender_pearl`)
     .button(`整地(誤使用注意！)`, `textures/items/recovery_compass_item`)
     .button(`エフェクト付与`, `textures/items/potion_bottle_splash_heal`)
     homeForm.show(p).then((response) => {
@@ -136,6 +112,38 @@ function modalFormAppear (p, n) {
             })
             break;
         case 3:
+            let placeList = [];
+            if (teleportList.length != 0) { // teleportListからテレポート先の名称を取得しリスト化
+                for (let data of teleportList) {
+                    placeList.push(data.name);
+                }
+            } else {
+                placeList.push(`テレポート先が保存されていません`);
+            }
+            const teleportForm = new ModalFormData()
+            .title(`§2§lカスタムテレポート`)
+            .dropdown(`[テレポート先を選択]`, placeList, 0)
+            .dropdown(`[設定を選択]`, [`オプションを選択`, `新しいテレポート先を保存する`, `保存済みのテレポート先を削除する`], 0)
+            teleportForm.show(p).then(response => {
+                switch (response.formValues[1]) {
+                    case 0:
+                        if (teleportList.length == 0) return;
+                        let teleportData = teleportList[response.formValues[0]];
+                        p.teleport(teleportData.location, teleportData.dimension, p.getRotation().x, p.getRotation().y, undefined);
+                        break;
+                    case 1:
+                        showRegisterForm(p);
+                        break;
+                    case 2:
+                        if (teleportList.length == 0) return;
+                        showRemoveForm(p);
+                        break;
+                    default:
+                        break;
+                }
+            })
+            break;
+        case 4:
             const levelForm = new ModalFormData()
             .title(`§2§l整地(誤使用注意！)`)
             .toggle(`[機能をオンにする]`, playerData.level.enabled)
@@ -147,7 +155,7 @@ function modalFormAppear (p, n) {
                 playerData.level.height = response.formValues[2];
             })
             break;
-        case 4:
+        case 5:
             const effectForm = new ModalFormData()
             .title(`§2§lエフェクト付与`)
             .dropdown(`[エフェクトを選択]`, [`移動速度上昇`, `跳躍力上昇`, `暗視`, `効果削除`], 0)
@@ -161,6 +169,58 @@ function modalFormAppear (p, n) {
             break;
     }
 };
+
+function showRegisterForm(p) {
+    const registerForm = new ModalFormData()
+    .title(`§2§l新しいテレポート先を保存する`)
+    .textField(`[名称]`, `名称を入力してください`, `拠点${teleportList.length+1}`)
+    .toggle(`[現在地を保存する(*名称必須)]`, false)
+    .dropdown(`[ディメンション]`, [`オーバーワールド`, `ネザー`, `エンド`], 0)
+    .textField(`[X座標]`, `数字を入力してください`, `0`)
+    .textField(`[Y座標]`, `数字を入力してください`, `0`)
+    .textField(`[Z座標]`, `数字を入力してください`, `0`)
+    registerForm.show(p).then(response => {
+        if (response.formValues[1]) {
+            let teleportData = new teleportInfo(response.formValues[0], p.dimension, p.location);
+            teleportList.push(teleportData);
+            p.runCommandAsync(`say 現在地(${response.formValues[0]})を登録しました。`);
+        } else {
+            let placeName = response.formValues[0];
+            let dimension;
+            switch (response.formValues[2]) {
+                case 0:
+                    dimension = world.getDimension(`overworld`);
+                    break;
+                case 1:
+                    dimension = world.getDimension(`nether`);
+                    break;
+                case 2:
+                    dimension = world.getDimension(`the_end`);
+                default:
+                    break;
+            }
+            let location = new Vector(parseInt(response.formValues[3]), parseInt(response.formValues[4]), parseInt(response.formValues[5]));
+            let teleportData = new teleportInfo(placeName, dimension, location);
+            teleportList.push(teleportData);
+            p.runCommandAsync(`say ${placeName}:${dimension.id.substring(10)}\nx:${location.x} y:${location.y} z:${location.z}\nを登録しました。`);
+        }
+    })
+}
+
+function showRemoveForm(p) {
+    let placeList = [];
+    for (let data of teleportList) {
+        placeList.push(data.name);
+    }
+    const removeForm = new ModalFormData()
+    .title(`保存済みのテレポート先を削除する`)
+    .dropdown(`[削除するデータを選択]`, placeList, 0)
+    removeForm.show(p).then(response => {
+        let placeName = teleportList[response.formValues[0]].name;
+        teleportList.splice(response.formValues[0], 1);
+        p.runCommandAsync(`say ${placeName}を削除しました。`);
+    })
+}
 
 function setItemListData() {
     if (itemNameList.length != 1 || itemIdList.length != 1) return;
@@ -268,11 +328,7 @@ system.runInterval(() => {
     for (let i = 0; i < playerList.length; i++) {
         if (playerList[i].level.enabled) {
             playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l整地機能§4§l作動中"}]}`);
-            try {
-                playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air`);
-            } catch(error) {
-                playerList[i].player.runCommandAsync(`say ERROR: ${error}`);
-            }
+            playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air`);
         }
         if (playerList[i].place.enabled) {
             playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l連鎖機能§4§l作動中"}]}`);
