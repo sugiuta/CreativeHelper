@@ -1,5 +1,4 @@
 /CreativeHelper-BP/node_modules
 /CreativeHelper-BP/package-lock.json
 /CreativeHelper-BP/package.json
-/CreativeHelper-BP/.DS_Store
-/picture/.DS_Store
+.DS_Store

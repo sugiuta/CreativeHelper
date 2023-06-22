@@ -50,8 +50,8 @@ function getPlayer(n) {
 /* <----- メニュー表示 -----> */
 
 // 指定のアイテムを使用した際にメニューを開く
-world.events.beforeItemUse.subscribe(useEvent => {
-    if (useEvent.source.typeId != `minecraft:player` || useEvent.item.typeId != `sugiuta:creative_helper`) return;
+world.afterEvents.itemUse.subscribe(useEvent => {
+    if (useEvent.source.typeId != `minecraft:player` || useEvent.itemStack.typeId != `sugiuta:creative_helper`) return;
     if (!checkPlayerData(useEvent.source.name)) addPlayerData(useEvent.source.name);
     actionFormAppear(useEvent.source);
 });
@@ -59,7 +59,7 @@ world.events.beforeItemUse.subscribe(useEvent => {
 // 基本メニューの表示
 function actionFormAppear (p) {
     const homeForm = new ActionFormData()
-    .title(`§2§lCreative Helper for §fv1.19.81`)
+    .title(`§2§lCreative Helper for §fv1.20.0`)
     .button(`連鎖ブロック`, `textures/items/diamond`)
     .button(`ゲーム設定の変更`, `textures/items/apple_golden`)
     .button(`アイテムの取得`, `textures/items/totem`)
@@ -129,7 +129,12 @@ function modalFormAppear (p, n) {
                     case 0:
                         if (teleportList.length == 0) return;
                         let teleportData = teleportList[response.formValues[0]];
-                        p.teleport(teleportData.location, teleportData.dimension, p.getRotation().x, p.getRotation().y, undefined);
+                        let options = {
+                            dimension: teleportData.dimension,
+                            facingLocation: p.getHeadLocation()
+                        }
+                        p.teleport(teleportData.location, options);
+                        //p.teleport(teleportData.location, teleportData.dimension, p.getRotation().x, p.getRotation().y, undefined);
                         break;
                     case 1:
                         showRegisterForm(p);
@@ -273,7 +278,7 @@ function addPlayerEffect(p, n, l, b) {
 /* <----- 連鎖ブロック -----> */
 
 // ブロックを配置した際の情報を取得
-world.events.blockPlace.subscribe(bpEvent => {
+world.afterEvents.blockPlace.subscribe(bpEvent => {
     let playerData = getPlayerData(bpEvent.player.name);
     if (!playerData.place.enabled) return;
 
