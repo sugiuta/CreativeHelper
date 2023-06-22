@@ -66,6 +66,7 @@ function actionFormAppear (p) {
     .button(`カスタムテレポート`, `textures/items/ender_pearl`)
     .button(`整地(誤使用注意！)`, `textures/items/recovery_compass_item`)
     .button(`エフェクト付与`, `textures/items/potion_bottle_splash_heal`)
+    .button(`専用アイテムの作成`, `textures/items/diamond_pickaxe`)
     homeForm.show(p).then((response) => {
         if (!response.canceled) modalFormAppear(p, response.selection);
     })
@@ -168,6 +169,21 @@ function modalFormAppear (p, n) {
             .toggle(`[パーティクルの削除]`)
             effectForm.show(p).then(response => {
                 addPlayerEffect(p, parseInt(response.formValues[0]), response.formValues[1], response.formValues[2]);
+            })
+            break;
+        case 6:
+            const createItemForm = new ModalFormData()
+            .title(`§2§l専用アイテムの作成`)
+            .textField(`[アイテム名を入力]`, `アイテム名を入力してください`, `minecraft:`)
+            .slider(`[個数指定]`, 1, 64, 1, 1)
+            .dropdown(`[オプションを選択]`, [`破壊可能`, `設置可能`], 0)
+            .textField(`[ブロック名を入力(必須)]`, `ブロック名を入力してください`, `minecraft:`)
+            createItemForm.show(p).then(response => {
+                if (response.formValues[2] == 0) {
+                    p.runCommandAsync(`give @s ${response.formValues[0]} ${response.formValues[1]} 0 {"can_destroy": {"blocks": ["${response.formValues[3]}"]}}`);
+                } else {
+                    p.runCommandAsync(`give @s ${response.formValues[0]} ${response.formValues[1]} 0 {"can_place_on": {"blocks": ["${response.formValues[3]}"]}}`);
+                }
             })
             break;
         default:
