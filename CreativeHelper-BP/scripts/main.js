@@ -1,92 +1,83 @@
-import { world, Vector, system } from "@minecraft/server"
+import { Vector, system, world } from "@minecraft/server"
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui"
 import { playerInfo, placeInfo, levelInfo, teleportInfo } from "./class.js"
-import config from "./config.js"
 
-let playerList = [];
-let itemNameList = [`なし`];
-let itemIdList = [`NOTHING`];
-let itemDataList = [`0`];
-let teleportList = [];
+let playersData = {};
 
-/* <----- グローバル -----> */
+world.afterEvents.worldInitialize.subscribe(() => {
+    if (world.getDynamicProperty(`playersData`) == null) return;
+    playersData = JSON.parse(world.getDynamicProperty(`playersData`));
+});
 
-// プレイヤーデータをリストから取得する。
-function getPlayerData(n) {
-    if (playerList.length == 0) return;
-    for (let i = 0; i < playerList.length; i++) {
-        if (n != playerList[i].name) continue;
-        return playerList[i];
+// デバッグ用
+world.afterEvents.chatSend.subscribe(csEvent => {
+    if (csEvent.message == "clear") {
+        world.clearDynamicProperties();
+        world.sendMessage(`保存データを削除しました`);
     }
-    return undefined;
-}
+});
 
-function checkPlayerData(n) {
-    if (playerList.length == 0) return false;
-    for (let data of playerList) {
-        if (n != data.name) continue;
-        return true;
-    }
-    return false;
-}
+world.afterEvents.playerJoin.subscribe(pjEvent => {
+    if (playersData[pjEvent.playerName] != null) return;
+    let placeData = new placeInfo(false, 0, 5);
+    let levelData = new levelInfo(false, 5, 5);
+    let itemsData = {
+        "コマンドブロック": "command_block",
+        "ストラクチャーブロック": "structure_block",
+        "ストラクチャーヴォイド": "minecraft:structure_void",
+        "バリアブロック": "barrier"
+    };
+    let teleportData = {
+        "初期スポーン地点": new teleportInfo("overworld", world.getDefaultSpawnLocation().x, 80, world.getDefaultSpawnLocation().z)
+    };
+    let defaultData = new playerInfo(placeData, levelData, itemsData, teleportData);
+    playersData[pjEvent.playerName] = defaultData;
+    savedPlayersData();
+});
 
-function addPlayerData(n) {
-    let player = getPlayer(n);
-    let placeData = new placeInfo(false, 0, 1);
-    let levelData = new levelInfo(false, 1, 1);
-    let data =  new playerInfo(player, placeData, levelData);
-    playerList.push(data);
-}
+// プレイヤーのデータを保存する
+function savedPlayersData() {
+    let playersDataStr = JSON.stringify(playersData);
+    world.setDynamicProperty(`playersData`, playersDataStr);
+};
 
-function getPlayer(n) {
-    let players = world.getAllPlayers();
-    for (let player of players) {
-        if (n != player.name) continue;
-        return player;
-    }
-    return undefined;
-}
-
-/* <----- メニュー表示 -----> */
-
-// 指定のアイテムを使用した際にメニューを開く
-world.afterEvents.itemUse.subscribe(useEvent => {
-    if (useEvent.source.typeId != `minecraft:player` || useEvent.itemStack.typeId != `sugiuta:creative_helper`) return;
-    if (!checkPlayerData(useEvent.source.name)) addPlayerData(useEvent.source.name);
-    actionFormAppear(useEvent.source);
+// アイテム使用を検知
+world.afterEvents.itemUse.subscribe(iuEvent => {
+    if (iuEvent.source.typeId != `minecraft:player` || iuEvent.itemStack.typeId != `sugiuta:creative_helper`) return;
+    actionFormAppear(iuEvent.source);
 });
 
 // 基本メニューの表示
 function actionFormAppear (p) {
-    const homeForm = new ActionFormData()
-    .title(`§2§lCreative Helper for §fv1.20.0`)
-    .button(`連鎖ブロック`, `textures/items/diamond`)
+    const actionForm = new ActionFormData()
+    .title(`§2§lクリエイティブ§fヘルパー`)
+    .button(`連鎖ブロック`, `textures/blocks/command_block_back_mipmap`)
     .button(`ゲーム設定の変更`, `textures/items/apple_golden`)
     .button(`アイテムの取得`, `textures/items/totem`)
     .button(`カスタムテレポート`, `textures/items/ender_pearl`)
-    .button(`整地(誤使用注意！)`, `textures/items/recovery_compass_item`)
+    .button(`整地`, `textures/items/iron_shovel`)
     .button(`エフェクト付与`, `textures/items/potion_bottle_splash_heal`)
-    .button(`専用アイテムの作成`, `textures/items/diamond_pickaxe`)
-    homeForm.show(p).then((response) => {
+    .button(`カスタムアイテムの作成`, `textures/items/iron_pickaxe`)
+    actionForm.show(p).then((response) => {
         if (!response.canceled) modalFormAppear(p, response.selection);
     })
 };
 
-// モーダルメニューの表示
 function modalFormAppear (p, n) {
-    let playerData = getPlayerData(p.name);
     switch (n) {
         case 0:
             const blockForm = new ModalFormData()
             .title(`§2§l連鎖ブロック`)
-            .toggle(`[機能をオンにする]`, playerData.place.enabled)
-            .dropdown(`[ブロックの配置方向を選択]`, [`縦`, `横`, `奥`, `手前`], playerData.place.direction)
-            .slider(`[個数指定]`, 1, 10, 1, playerData.place.count)
+            .toggle(`[機能をオンにする]`, playersData[p.name].place.enabled)
+            .dropdown(`[ブロックの配置方向を選択]`, [`縦`, `横`, `奥`, `手前`], playersData[p.name].place.direction)
+            .slider(`[個数指定]`, 1, 10, 1, playersData[p.name].place.count)
             blockForm.show(p).then(response => {
-                playerData.place.enabled = response.formValues[0];
-                playerData.place.direction = parseInt(response.formValues[1]);
-                playerData.place.count = response.formValues[2];
-            })
+                if (response.canceled) return;
+                playersData[p.name].place.enabled = response.formValues[0];
+                playersData[p.name].place.direction = response.formValues[1];
+                playersData[p.name].place.count = response.formValues[2];
+                savedPlayersData();
+            });
             break;
         case 1:
             const ruleForm = new ModalFormData()
@@ -94,71 +85,59 @@ function modalFormAppear (p, n) {
             .dropdown(`[ゲームモードの変更]`, [`サバイバル`, `クリエイティブ`, `アドベンチャー`, `スペクテイター`], 0)
             ruleForm.show(p).then(response => {
                 changedGamemode(p, parseInt(response.formValues[0]));
-            })
+            });
             break;
         case 2:
-            setItemListData();
+            let itemList = createItemList(p);
             const itemForm = new ModalFormData()
             .title(`§2§lアイテムの取得`)
-            .dropdown(`[アイテムを選択]`, itemNameList, 0)
+            .dropdown(`[アイテムを選択]`, itemList["nameList"], 0)
             .slider(`[個数指定]`, 1, 64, 1, 1)
-            .toggle(`[手持ちアイテムの削除]`)
+            .toggle(`[アイテムリストを編集]`, false)
+            .toggle(`[手持ちアイテムの削除]`, false)
             itemForm.show(p).then(response => {
                 if (response.formValues[2]) {
+                    itemListFormAppear(p);
+                    return;
+                }
+                if (response.formValues[3]) {
                     p.runCommandAsync(`clear @s`);
                     p.runCommandAsync(`give @s sugiuta:creative_helper`);
+                    return;
                 }
-                if (parseInt(response.formValues[0]) == 0) return;
-                p.runCommandAsync(`give @s ${itemIdList[parseInt(response.formValues[0])]} ${response.formValues[1]} ${itemDataList[parseInt(response.formValues[0])]}`);
-            })
+                let items = itemList["idList"];
+                p.runCommandAsync(`give @s ${items[response.formValues[0]]} ${response.formValues[1]}`);
+            });
             break;
         case 3:
-            let placeList = [];
-            if (teleportList.length != 0) { // teleportListからテレポート先の名称を取得しリスト化
-                for (let data of teleportList) {
-                    placeList.push(data.name);
-                }
-            } else {
-                placeList.push(`テレポート先が保存されていません`);
-            }
+            let teleportList = createTeleportList(p);
             const teleportForm = new ModalFormData()
             .title(`§2§lカスタムテレポート`)
-            .dropdown(`[テレポート先を選択]`, placeList, 0)
-            .dropdown(`[設定を選択]`, [`オプションを選択`, `新しいテレポート先を保存する`, `保存済みのテレポート先を削除する`], 0)
+            .dropdown(`[テレポート先を選択]`, teleportList["nameList"], 0)
+            .toggle(`[アイテムリストを編集]`, false)
             teleportForm.show(p).then(response => {
-                switch (response.formValues[1]) {
-                    case 0:
-                        if (teleportList.length == 0) return;
-                        let teleportData = teleportList[response.formValues[0]];
-                        let options = {
-                            dimension: teleportData.dimension,
-                            facingLocation: p.getHeadLocation()
-                        }
-                        p.teleport(teleportData.location, options);
-                        //p.teleport(teleportData.location, teleportData.dimension, p.getRotation().x, p.getRotation().y, undefined);
-                        break;
-                    case 1:
-                        showRegisterForm(p);
-                        break;
-                    case 2:
-                        if (teleportList.length == 0) return;
-                        showRemoveForm(p);
-                        break;
-                    default:
-                        break;
+                if (response.formValues[1]) {
+                    teleportListFormAppear(p);
+                    return;
                 }
+                let options = {
+                    dimension: teleportList["dimentionList"][response.formValues[0]]
+                };
+                let location = teleportList["locationList"][response.formValues[0]];
+                p.teleport(location, options);
             })
             break;
         case 4:
             const levelForm = new ModalFormData()
-            .title(`§2§l整地(誤使用注意！)`)
-            .toggle(`[機能をオンにする]`, playerData.level.enabled)
-            .slider(`[半径]`, 1, 10, 1, playerData.level.radius)
-            .slider(`[高さ]`, 1, 10, 1, playerData.level.height)
+            .title(`§2§l整地`)
+            .toggle(`[機能をオンにする]`, playersData[p.name].level.enabled)
+            .slider(`[半径]`, 1, 10, 1, playersData[p.name].level.radius)
+            .slider(`[高さ]`, 1, 10, 1, playersData[p.name].level.height)
             levelForm.show(p).then(response => {
-                playerData.level.enabled = response.formValues[0];
-                playerData.level.radius = response.formValues[1];
-                playerData.level.height = response.formValues[2];
+                playersData[p.name].level.enabled = response.formValues[0];
+                playersData[p.name].level.radius = response.formValues[1];
+                playersData[p.name].level.height = response.formValues[2];
+                savedPlayersData();
             })
             break;
         case 5:
@@ -173,7 +152,7 @@ function modalFormAppear (p, n) {
             break;
         case 6:
             const createItemForm = new ModalFormData()
-            .title(`§2§l専用アイテムの作成`)
+            .title(`§2§lカスタムアイテムの作成`)
             .textField(`[アイテム名を入力]`, `アイテム名を入力してください`, `minecraft:`)
             .slider(`[個数指定]`, 1, 64, 1, 1)
             .dropdown(`[オプションを選択]`, [`破壊可能`, `設置可能`], 0)
@@ -190,68 +169,6 @@ function modalFormAppear (p, n) {
             break;
     }
 };
-
-function showRegisterForm(p) {
-    const registerForm = new ModalFormData()
-    .title(`§2§l新しいテレポート先を保存する`)
-    .textField(`[名称]`, `名称を入力してください`, `拠点${teleportList.length+1}`)
-    .toggle(`[現在地を保存する(*名称必須)]`, false)
-    .dropdown(`[ディメンション]`, [`オーバーワールド`, `ネザー`, `エンド`], 0)
-    .textField(`[X座標]`, `数字を入力してください`, `0`)
-    .textField(`[Y座標]`, `数字を入力してください`, `0`)
-    .textField(`[Z座標]`, `数字を入力してください`, `0`)
-    registerForm.show(p).then(response => {
-        if (response.formValues[1]) {
-            let teleportData = new teleportInfo(response.formValues[0], p.dimension, p.location);
-            teleportList.push(teleportData);
-            p.runCommandAsync(`say 現在地(${response.formValues[0]})を登録しました。`);
-        } else {
-            let placeName = response.formValues[0];
-            let dimension;
-            switch (response.formValues[2]) {
-                case 0:
-                    dimension = world.getDimension(`overworld`);
-                    break;
-                case 1:
-                    dimension = world.getDimension(`nether`);
-                    break;
-                case 2:
-                    dimension = world.getDimension(`the_end`);
-                default:
-                    break;
-            }
-            let location = new Vector(parseInt(response.formValues[3]), parseInt(response.formValues[4]), parseInt(response.formValues[5]));
-            let teleportData = new teleportInfo(placeName, dimension, location);
-            teleportList.push(teleportData);
-            p.runCommandAsync(`say ${placeName}:${dimension.id.substring(10)}\nx:${location.x} y:${location.y} z:${location.z}\nを登録しました。`);
-        }
-    })
-}
-
-function showRemoveForm(p) {
-    let placeList = [];
-    for (let data of teleportList) {
-        placeList.push(data.name);
-    }
-    const removeForm = new ModalFormData()
-    .title(`保存済みのテレポート先を削除する`)
-    .dropdown(`[削除するデータを選択]`, placeList, 0)
-    removeForm.show(p).then(response => {
-        let placeName = teleportList[response.formValues[0]].name;
-        teleportList.splice(response.formValues[0], 1);
-        p.runCommandAsync(`say ${placeName}を削除しました。`);
-    })
-}
-
-function setItemListData() {
-    if (itemNameList.length != 1 || itemIdList.length != 1) return;
-    for (let i = 0; i < config.itemList.targets.length; i++) {
-        let item = Object.values(config.itemList.targets[i]);
-        itemNameList.push(item[0]);
-        itemIdList.push(item[1]);
-        itemDataList.push(item[2]);
-    }
-}
 
 function changedGamemode(p, n) {
     switch (n) {
@@ -270,6 +187,102 @@ function changedGamemode(p, n) {
         default:
             break;
     }
+}
+
+function createTeleportList(p) {
+    let nameList = [];
+    let dimentionList = [];
+    let locationList = [];
+    for (let key in playersData[p.name].teleport) {
+        nameList.push(key);
+        let dimension = world.getDimension(playersData[p.name].teleport[key].id);
+        dimentionList.push(dimension);
+        let x = playersData[p.name].teleport[key].x;
+        let y = playersData[p.name].teleport[key].y;
+        let z = playersData[p.name].teleport[key].z;
+        let location = new Vector(x, y, z);
+        locationList.push(location);
+    }
+    let teleportList = {
+        nameList: nameList,
+        dimentionList: dimentionList,
+        locationList: locationList
+    };
+    return teleportList;
+}
+
+function createItemList(p) {
+    let nameList = [];
+    let idList = [];
+    for (let key in playersData[p.name].items) {
+        nameList.push(key);
+        idList.push(playersData[p.name].items[key]);
+    }
+    let itemList = {
+        nameList: nameList,
+        idList: idList
+    };
+    return itemList;
+}
+
+function itemListFormAppear(p) {
+    const itemListForm = new ModalFormData()
+    .title(`§f§lアイテムリストを編集`)
+    .dropdown(`[編集内容を選択]`, [`アイテムを追加`, `アイテムを削除`], 0)
+    .textField(`[アイテム名を入力]`, `例: コマンドブロック`)
+    .textField(`[アイテムIDを入力]`, `例: command_block`)
+    itemListForm.show(p).then(response => {
+        switch (response.formValues[0]) {
+            case 0:
+                if (response.formValues[2].length == 0) return;
+                playersData[p.name].items[response.formValues[1]] = response.formValues[2];
+                savedPlayersData();
+                break;
+            case 1:
+                if (response.formValues[1].length == 0) return;
+                delete playersData[p.name].items[response.formValues[1]];
+                savedPlayersData();
+                break;
+            default:
+                break;
+        }
+    });
+}
+
+function teleportListFormAppear(p) {
+    const teleportListForm = new ModalFormData()
+    .title(`§f§lテレポート先のリストを編集`)
+    .dropdown(`[編集内容を選択]`, [`テレポート先を追加`, `テレポート先を削除`], 0)
+    .textField(`[地点名を入力]`, `例: 初期スポーン地点`)
+    .dropdown(`[ディメンションを選択]`, [`オーバーワールド`, `ネザー`, `エンド`], 0)
+    .textField(`[X座標を入力]`, `例: 10`)
+    .textField(`[Y座標を入力]`, `例: 50`)
+    .textField(`[Z座標を入力]`, `例: -100`)
+    teleportListForm.show(p).then(response => {
+        switch (response.formValues[0]) {
+            case 0:
+                if (response.formValues[3].length == 0 || response.formValues[4].length == 0 || response.formValues[5].length == 0) return;
+                if (response.formValues[2] == 0) {
+                    let teleportData = new teleportInfo(`overworld`, parseInt(response.formValues[3]), parseInt(response.formValues[4]), parseInt(response.formValues[5]));
+                    playersData[p.name].teleport[response.formValues[1]] = teleportData;
+                } else if (response.formValues[2] == 1) {
+                    let teleportData = new teleportInfo(`nether`, parseInt(response.formValues[3]), parseInt(response.formValues[4]), parseInt(response.formValues[5]));
+                    playersData[p.name].teleport[response.formValues[1]] = teleportData;
+                } else {
+                    let teleportData = new teleportInfo(`the_end`, parseInt(response.formValues[3]), parseInt(response.formValues[4]), parseInt(response.formValues[5]));
+                    playersData[p.name].teleport[response.formValues[1]] = teleportData;
+                }
+                savedPlayersData();
+                break;
+            case 1:
+                if (response.formValues[1].length == 0) return;
+                delete playersData[p.name].teleport[response.formValues[1]];
+                savedPlayersData();
+                break;
+            default:
+                break;
+        }
+    });
 }
 
 function addPlayerEffect(p, n, l, b) {
@@ -291,68 +304,71 @@ function addPlayerEffect(p, n, l, b) {
     }
 }
 
-/* <----- 連鎖ブロック -----> */
-
-// ブロックを配置した際の情報を取得
-world.afterEvents.blockPlace.subscribe(bpEvent => {
-    let playerData = getPlayerData(bpEvent.player.name);
+world.afterEvents.playerPlaceBlock.subscribe(pbEvent => {
+    let playerData = playersData[pbEvent.player.name];
     if (!playerData.place.enabled) return;
 
-    const clone = bpEvent.block.permutation.clone();
-    let direction = bpEvent.player.getRotation().y;
-    if (playerData.place.direction == 0) { // 縦の場合
-        for (let y = 1; y <= playerData.place.count; y += 1) {
-            bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y + y, bpEvent.block.location.z)).setPermutation(clone);
-        }
-    } else if (playerData.place.direction == 1) { // 横の場合
-        for (let x = 1; x <= playerData.place.count; x += 1) {
-            if ((-180 <= direction && direction < -135) || (-45 <= direction && direction < 45) || (135 <= direction && direction <= 180)) { // X軸方向
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x + x, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x - x, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
-            } else { // Z軸方向
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z + x)).setPermutation(clone);
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z - x)).setPermutation(clone);
+    let clone = pbEvent.block.permutation.clone();
+    let direction = pbEvent.player.getRotation().y;
+
+    switch (playerData.place.direction) {
+        case 0:
+            for (let y = 1; y <= playerData.place.count-1; y += 1) {
+                pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y + y, pbEvent.block.location.z)).setPermutation(clone);
             }
-        }
-    } else if (playerData.place.direction == 2) { // 奥の場合
-        for (let z = 1; z <= playerData.place.count; z += 1) {
-            if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) { // bpEvent.block.location.z - z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z - z)).setPermutation(clone);
-            } else if (-135 <= direction && direction < -45) { // bpEvent.block.location.x + z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x + z, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
-            } else if (-45 <= direction && direction < 45) { // bpEvent.block.location.z + z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z + z)).setPermutation(clone);
-            } else { // bpEvent.block.location.x - z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x - z, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
+            break;
+        case 1:
+            for (let x = 1; x <= playerData.place.count; x += 1) {
+                if ((-180 <= direction && direction < -135) || (-45 <= direction && direction < 45) || (135 <= direction && direction <= 180)) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x + x, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x - x, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                } else { // Z軸方向
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z + x)).setPermutation(clone);
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z - x)).setPermutation(clone);
+                }
             }
-        }
-    } else { // 手前の場合
-        for (let z = 1; z <= playerData.place.count; z += 1) {
-            if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) { // bpEvent.block.location.z + z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z + z)).setPermutation(clone);
-            } else if (-135 <= direction && direction < -45) { // bpEvent.block.location.x - z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x - z, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
-            } else if (-45 <= direction && direction < 45) { // bpEvent.block.location.z - z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x, bpEvent.block.location.y, bpEvent.block.location.z - z)).setPermutation(clone);
-            } else { // bpEvent.block.location.x + z
-                bpEvent.dimension.getBlock(new Vector(bpEvent.block.location.x + z, bpEvent.block.location.y, bpEvent.block.location.z)).setPermutation(clone);
+            break;
+        case 2:
+            for (let z = 1; z <= playerData.place.count-1; z += 1) {
+                if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z - z)).setPermutation(clone);
+                } else if (-135 <= direction && direction < -45) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x + z, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                } else if (-45 <= direction && direction < 45) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z + z)).setPermutation(clone);
+                } else {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x - z, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                }
             }
-        }
+            break;
+        case 3:
+            for (let z = 1; z <= playerData.place.count-1; z += 1) {
+                if ((-180 <= direction && direction < -135) || (135 <= direction && direction <= 180)) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z + z)).setPermutation(clone);
+                } else if (-135 <= direction && direction < -45) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x - z, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                } else if (-45 <= direction && direction < 45) {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x, pbEvent.block.location.y, pbEvent.block.location.z - z)).setPermutation(clone);
+                } else {
+                    pbEvent.dimension.getBlock(new Vector(pbEvent.block.location.x + z, pbEvent.block.location.y, pbEvent.block.location.z)).setPermutation(clone);
+                }
+            }
+        default:
+            break;
     }
 });
 
-/* <----- 整地 -----> */
-
-// 数秒ごとに周囲のブロックを削除
 system.runInterval(() => {
     if ((system.currentTick % 10) != 0) return;
-    for (let i = 0; i < playerList.length; i++) {
-        if (playerList[i].level.enabled) {
-            playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l整地機能§4§l作動中"}]}`);
-            playerList[i].player.runCommandAsync(`fill ~${-playerList[i].level.radius}~~${-playerList[i].level.radius} ~${playerList[i].level.radius}~${playerList[i].level.height-1}~${playerList[i].level.radius} air`);
+    for (let player of world.getAllPlayers()) {
+        if (playersData[player.name].level.enabled) {
+            player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l整地機能§4§l作動中"}]}`);
+            let radius = playersData[player.name].level.radius;
+            let height = playersData[player.name].level.height;
+            player.runCommandAsync(`fill ~${-radius}~~${-radius} ~${radius}~${height-1}~${radius} air`);
         }
-        if (playerList[i].place.enabled) {
-            playerList[i].player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l連鎖機能§4§l作動中"}]}`);
+        if (playersData[player.name].place.enabled) {
+            player.runCommandAsync(`titleraw @s actionbar {"rawtext":[{"text":"§f§l連鎖機能§4§l作動中"}]}`);
         }
     }
 })

@@ -1,12 +1,10 @@
 
 export class playerInfo {
-    constructor (player, place, level) {
-        this.player = player;
+    constructor (place, level, items, teleport) {
         this.place = place;
         this.level = level;
-    }
-    get name() {
-        return this.player.name;
+        this.items = items;
+        this.teleport = teleport;
     }
 }
 
@@ -27,9 +25,10 @@ export class levelInfo {
 }
 
 export class teleportInfo {
-    constructor (name, dimension, location) {
-        this.name = name;
-        this.dimension = dimension;
-        this.location = location;
+    constructor (id, x, y, z) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.z = z;
     }
 }

@@ -1,21 +1,18 @@
 {
-    "format_version": "1.19.50",
-    "minecraft:item": {
-      "description": {
-        "identifier": "sugiuta:creative_helper",
-        "category": "Items"
+  "format_version": "1.20.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "sugiuta:creative_helper",
+      "category": "Items"
+    },
+
+    "components": {
+      "minecraft:icon": {
+        "texture": "creative_helper"
       },
-      "components": {
-        "minecraft:icon": {
-          "texture": "creative_helper"
-        },
-        "minecraft:display_name":{
-          "value": "§2§lクリエイティブ§fヘルパー"
-        },
-        "minecraft:on_use": {
-          "on_use": {
-          }
-        }
+      "minecraft:display_name": {
+        "value": "§2§lクリエイティブ§fヘルパー"
       }
     }
   }
+}
