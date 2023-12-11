@@ -2,7 +2,7 @@
 
 # パッケージ名を指定
 name="Creative_Helper"
-version="1.0.0"
+version="1.0.1"
 
 # packageフォルダの削除
 rm -rf ./package
